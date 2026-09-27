@@ -12,54 +12,39 @@
         body {
             margin: 0;
             min-height: 100vh;
-            display: flex;
-            background-color: #f3f4f6;
         }
 
         #sidebar {
-            flex: 0 0 320px;
+            position: relative;
+            z-index: 1;
+            width: 320px;
             min-height: 100vh;
             box-sizing: border-box;
             background-color: #dbeafe;
             border-right: 1px solid #bfdbfe;
         }
 
-        main {
-            flex: 1;
-            min-width: 0;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            box-sizing: border-box;
-        }
-
         #map {
-            width: min(100%, 1000px);
-            height: 70vh;
-            border-radius: 12px;
-            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
         }
 
         @media (max-width: 600px) {
             #sidebar {
-                flex-basis: 120px;
-            }
-
-            main {
-                padding: 12px;
+                width: 120px;
             }
         }
     </style>
 </head>
 <body>
+    <div id="map"></div>
     <aside id="sidebar"></aside>
-    <main>
-        <div id="map"></div>
-    </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const map = L.map("map").setView([3.1390, 101.6869], 12);
+        const map = L.map("map", { zoomControl: false }).setView([3.1390, 101.6869], 12);
+        L.control.zoom({ position: "topright" }).addTo(map);
 
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 19,
