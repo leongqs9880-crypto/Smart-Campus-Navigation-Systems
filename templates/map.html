@@ -1,27 +1,35 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title></title>
+    <title>Smart Campus Navigation - MMU Cyberjaya</title>
 
-    <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
         }
 
         #sidebar {
             position: relative;
-            z-index: 1;
-            width: 320px;
+            z-index: 10;
+            width: 360px;
             min-height: 100vh;
-            box-sizing: border-box;
-            background-color: #dbeafe;
-            border-right: 1px solid #bfdbfe;
+            background-color: #ffffff;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
         #map {
@@ -30,26 +38,373 @@
             z-index: 0;
         }
 
+        .search-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        /* Autocomplete dropdown menu */
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-top: 4px;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 20;
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #eff6ff;
+            color: #2563eb;
+        }
+
+        /* Swap locations button */
+        .swap-btn {
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 12px;
+            z-index: 5;
+        }
+
+        .swap-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background-color: #cbd5e1;
+        }
+
+        #route-info {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            color: #166534;
+            display: none;
+        }
+
         @media (max-width: 600px) {
             #sidebar {
-                width: 120px;
+                width: 100%;
+                min-height: auto;
+                max-height: 40vh;
+                overflow-y: auto;
             }
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <aside id="sidebar"></aside>
+
+    <aside id="sidebar">
+        <h2>MMU Campus Navigation</h2>
+
+        <div class="search-card">
+            <button class="swap-btn" id="swap-btn" title="Swap origin and destination">⇅</button>
+
+            <!-- Origin Input -->
+            <div class="input-group">
+                <label for="start-input">🟢 Starting Point</label>
+                <div class="input-wrapper">
+                    <input type="text" id="start-input" placeholder="Enter starting point..." autocomplete="off">
+                    <div id="start-results" class="autocomplete-results"></div>
+                </div>
+            </div>
+
+            <!-- Destination Input -->
+            <div class="input-group">
+                <label for="end-input">🔴 Destination</label>
+                <div class="input-wrapper">
+                    <input type="text" id="end-input" placeholder="Enter destination..." autocomplete="off">
+                    <div id="end-results" class="autocomplete-results"></div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" id="route-btn">Get Route</button>
+                <button class="btn btn-secondary" id="clear-btn">Clear</button>
+            </div>
+        </div>
+
+        <div id="route-info"></div>
+    </aside>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const map = L.map("map", { zoomControl: false }).setView([3.1390, 101.6869], 12);
+        // 1. Initialize map centered at MMU Cyberjaya
+        const mmuCoords = [2.9279, 101.6418];
+        const map = L.map("map", { zoomControl: false }).setView(mmuCoords, 16);
+        
         L.control.zoom({ position: "topright" }).addTo(map);
 
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+
+        // 2. Sample MMU Cyberjaya POI Data
+        const campusPOIs = [
+            { id: "p1", name: "MMU Library (Siti Hasmah Digital Library)", lat: 2.9275, lng: 101.6420 },
+            { id: "p2", name: "FCI - Faculty of Computing & Informatics", lat: 2.9288, lng: 101.6415 },
+            { id: "p3", name: "FOE - Faculty of Engineering", lat: 2.9295, lng: 101.6428 },
+            { id: "p4", name: "FCM - Faculty of Creative Multimedia", lat: 2.9265, lng: 101.6405 },
+            { id: "p5", name: "MMU Student Centre", lat: 2.9282, lng: 101.6432 },
+            { id: "p6", name: "HB1 Hostel (HB Hall)", lat: 2.9255, lng: 101.6438 },
+            { id: "p7", name: "MMU Grand Hall (Dewan Tun CTH)", lat: 2.9290, lng: 101.6402 }
+        ];
+
+        // State variables
+        let selectedStart = null;
+        let selectedEnd = null;
+        let startMarker = null;
+        let endMarker = null;
+        let routePolyline = null;
+
+        // 3. Autocomplete search logic
+        function setupAutocomplete(inputId, resultsId, onSelect) {
+            const input = document.getElementById(inputId);
+            const resultsContainer = document.getElementById(resultsId);
+
+            input.addEventListener("input", () => {
+                const query = input.value.trim().toLowerCase();
+                resultsContainer.innerHTML = "";
+                
+                if (!query) {
+                    resultsContainer.style.display = "none";
+                    return;
+                }
+
+                const filtered = campusPOIs.filter(poi => poi.name.toLowerCase().includes(query));
+
+                if (filtered.length === 0) {
+                    resultsContainer.style.display = "none";
+                    return;
+                }
+
+                filtered.forEach(poi => {
+                    const item = document.createElement("div");
+                    item.className = "autocomplete-item";
+                    item.textContent = poi.name;
+                    item.addEventListener("click", () => {
+                        input.value = poi.name;
+                        resultsContainer.style.display = "none";
+                        onSelect(poi);
+                    });
+                    resultsContainer.appendChild(item);
+                });
+
+                resultsContainer.style.display = "block";
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener("click", (e) => {
+                if (!input.contains(e.target) && !resultsContainer.contains(e.target)) {
+                    resultsContainer.style.display = "none";
+                }
+            });
+        }
+
+        // Bind search inputs for start and end points
+        setupAutocomplete("start-input", "start-results", (poi) => {
+            selectedStart = poi;
+            updateMarker("start", poi);
+        });
+
+        setupAutocomplete("end-input", "end-results", (poi) => {
+            selectedEnd = poi;
+            updateMarker("end", poi);
+        });
+
+        // 4. Update markers on the map
+        function updateMarker(type, poi) {
+            if (type === "start") {
+                if (startMarker) map.removeLayer(startMarker);
+                startMarker = L.circleMarker([poi.lat, poi.lng], {
+                    color: '#16a34a',
+                    fillColor: '#22c55e',
+                    fillOpacity: 0.9,
+                    radius: 8
+                }).addTo(map).bindPopup(`<b>Start:</b> ${poi.name}`).openPopup();
+            } else {
+                if (endMarker) map.removeLayer(endMarker);
+                endMarker = L.circleMarker([poi.lat, poi.lng], {
+                    color: '#dc2626',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.9,
+                    radius: 8
+                }).addTo(map).bindPopup(`<b>Destination:</b> ${poi.name}`).openPopup();
+            }
+        }
+
+        // 5. Route planning and polyline drawing
+        document.getElementById("route-btn").addEventListener("click", () => {
+            if (!selectedStart || !selectedEnd) {
+                alert("Please select both a starting point and a destination!");
+                return;
+            }
+
+            if (selectedStart.id === selectedEnd.id) {
+                alert("Starting point and destination cannot be the same!");
+                return;
+            }
+
+            // Remove existing route line if any
+            if (routePolyline) map.removeLayer(routePolyline);
+
+            const pathCoordinates = [
+                [selectedStart.lat, selectedStart.lng],
+                [selectedEnd.lat, selectedEnd.lng]
+            ];
+
+            // Draw route line
+            routePolyline = L.polyline(pathCoordinates, {
+                color: '#2563eb',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '8, 8'
+            }).addTo(map);
+
+            // Fit map view to bounds of the route
+            map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+
+            // Display route summary
+            const routeInfo = document.getElementById("route-info");
+            routeInfo.style.display = "block";
+            routeInfo.innerHTML = `📍 From <b>${selectedStart.name}</b> to <b>${selectedEnd.name}</b><br>🚶‍♂️ Ready for navigation...`;
+        });
+
+        // 6. Swap origin and destination
+        document.getElementById("swap-btn").addEventListener("click", () => {
+            const startInput = document.getElementById("start-input");
+            const endInput = document.getElementById("end-input");
+
+            // Swap values
+            const tempPoi = selectedStart;
+            selectedStart = selectedEnd;
+            selectedEnd = tempPoi;
+
+            // Swap input text
+            const tempVal = startInput.value;
+            startInput.value = endInput.value;
+            endInput.value = tempVal;
+
+            // Update markers
+            if (selectedStart) updateMarker("start", selectedStart);
+            else if (startMarker) map.removeLayer(startMarker);
+
+            if (selectedEnd) updateMarker("end", selectedEnd);
+            else if (endMarker) map.removeLayer(endMarker);
+        });
+
+        // 7. Clear search and map state
+        document.getElementById("clear-btn").addEventListener("click", () => {
+            selectedStart = null;
+            selectedEnd = null;
+            document.getElementById("start-input").value = "";
+            document.getElementById("end-input").value = "";
+            document.getElementById("route-info").style.display = "none";
+
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+            if (routePolyline) map.removeLayer(routePolyline);
+
+            map.setView(mmuCoords, 16);
+        });
     </script>
 </body>
 </html>
