@@ -224,7 +224,12 @@
             { id: "p6", name: "HB1 Hostel",                                    lat: 2.92483, lng: 101.64560 },
             { id: "p7", name: "MMU Swimming Pool Complex",                     lat: 2.92861, lng: 101.64355 },
             { id: "p8", name: "MMU Stadium",                                   lat: 2.92789, lng: 101.64420 },
-            { id: "p9", name: "Surau Al Hidayah",                              lat: 2.92414, lng: 101.64302 }
+            { id: "p9", name: "Surau Al Hidayah",                              lat: 2.92414, lng: 101.64302 },
+            { id: "p10", name: "FOM - Faculty of Management", lat: 2.92969, lng: 101.64133 },
+            { id: "p11", name: "CLC - Central Lecture Complex", lat: 2.92757, lng: 101.64232 },
+            { id: "p12", name: "HB2 - Hostel Building 2", lat: 2.92514, lng: 101.64519 },
+            { id: "p13", name: "HB3 - Hostel Building 3", lat: 2.92511, lng: 101.644 },
+            { id: "p14", name: "HB4 - Hostel Building 4", lat: 2.92574, lng: 101.64436 }
         ];
 
         // State
@@ -326,6 +331,9 @@
         // 5. Route helpers
         function resetRoute() {
             routeRequestId++; // cancel any in-flight request
+            const routeBtn = document.getElementById("route-btn");
+            routeBtn.disabled = false;
+            routeBtn.textContent = "Get Route";
             if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
             const info = document.getElementById("route-info");
             info.style.display = "none";
@@ -366,6 +374,160 @@
             return { route: data.routes[0], waypoints: data.waypoints };
         }
 
+        // ---- Campus walking network (traced from the hand-drawn routes) ----------------
+        // Walk mode follows ONLY these drawn footpaths. Drive mode is untouched (OSRM car).
+        // Each edge starts and ends at a named node; the [lat, lng] pairs in between are the
+        // bends of the drawn line. Add a new edge to extend the walking network.
+        const WALK_NODES = {
+            HB1: [2.92473, 101.64569],
+            HB2: [2.92515, 101.64519],
+            NHB4: [2.92526, 101.64402],
+            HB3: [2.92514, 101.64401],
+            HB4: [2.92574, 101.64436],
+            J1: [2.92528, 101.64304],
+            JW: [2.92536, 101.64284],
+            SURAU: [2.92411, 101.64301],
+            FCM: [2.92595, 101.64264],
+            NLIB: [2.9276, 101.64189],
+            LIB: [2.92757, 101.64163],
+            CLC: [2.92757, 101.64232],
+            NFCI: [2.92863, 101.64166],
+            FCI: [2.92856, 101.64119],
+            NDEWAN: [2.92899, 101.64166],
+            DEWAN: [2.929, 101.64188],
+            FOM: [2.92969, 101.64133],
+            POOL: [2.92851, 101.64334],
+            STADIUM: [2.92791, 101.64392],
+            SJ: [2.9279, 101.64345],
+            FJ: [2.92642, 101.6437],
+            HB4J: [2.9257, 101.64356],
+            DJ: [2.92852, 101.64166],
+            BJ: [2.92813, 101.64259],
+            FAIE: [2.92628, 101.64166]
+        };
+
+        // Main campus footpaths (hostels, faculties, Dewan, Library, CLC, FOM, Surau)
+        const WALK_EDGES = [
+            ["HB1", [2.92515, 101.64569], "HB2"],
+            ["HB2", [2.92515, 101.64436], [2.92526, 101.64436], "NHB4"],
+            ["NHB4", "HB3"],
+            ["NHB4", [2.92545, 101.64404], "HB4"],
+            ["HB3", [2.92515, 101.64361], [2.92515, 101.64317], "J1"],
+            ["J1", "JW"],
+            ["J1", [2.92504, 101.64296], [2.92463, 101.6429], [2.92453, 101.64311], [2.92436, 101.64327], [2.92423, 101.64324], "SURAU"],
+            ["JW", [2.92562, 101.64282], "FCM"],
+            ["JW", [2.92551, 101.64251], [2.9259, 101.64221], [2.92628, 101.64204], [2.9266, 101.64189], [2.92671, 101.64202], [2.92689, 101.64202], [2.92728, 101.64193], "NLIB"],
+            ["NLIB", "LIB"],
+            ["NLIB", "CLC"],
+            ["NLIB", [2.92788, 101.64188], [2.9282, 101.64177], [2.92824, 101.64166], [2.92843, 101.64166], "NFCI"],
+            ["NFCI", "FCI"],
+            ["NFCI", [2.92882, 101.64166], "NDEWAN"],
+            ["NDEWAN", "DEWAN"],
+            ["NDEWAN", [2.92937, 101.64166], [2.92964, 101.6417], [2.92968, 101.64152], "FOM"]
+        ];
+
+        // Extra drawn footpaths that are ONLY used when the trip starts or ends at the
+        // Swimming Pool Complex or the Stadium (blue = via Persiaran Neuron from the hostels,
+        // red = from FAIE through FCM, black = from FCI / Dewan / Library / CLC).
+        const POOL_EDGES = [
+            ["J1", [2.92517, 101.6432], [2.92529, 101.6433], [2.92552, 101.64345], "HB4J", [2.92594, 101.64365], [2.92629, 101.64371], "FJ", [2.92668, 101.64369], [2.92702, 101.64362], [2.92737, 101.64356], [2.92771, 101.64349], "SJ", [2.92815, 101.64343], [2.9284, 101.64335], "POOL"],
+            ["SJ", "STADIUM"],
+            ["HB4J", [2.92572, 101.64365], [2.92569, 101.64375], [2.92554, 101.64389], [2.92542, 101.64404], [2.92557, 101.64419], "HB4"],
+            ["FAIE", [2.92624, 101.64188], [2.92622, 101.64222], [2.92611, 101.64242], "FCM", [2.92611, 101.64271], [2.92625, 101.64291], [2.92638, 101.64306], [2.92642, 101.64313], [2.92642, 101.6434], "FJ"],
+            ["FCI", [2.92853, 101.6413], "DJ", [2.92852, 101.64188], [2.92849, 101.64215], [2.92837, 101.64237], "BJ", [2.9281, 101.64289], [2.92823, 101.64306], [2.92837, 101.6432], [2.92845, 101.64333], "POOL"],
+            ["DJ", [2.92899, 101.64166], "DEWAN"],
+            ["BJ", [2.92786, 101.64266], [2.92764, 101.64266], "CLC", "LIB"]
+        ];
+        const POOL_IDS = new Set(["p7", "p8"]); // Swimming Pool Complex, Stadium
+
+        // Which network node each POI sits on. POIs with no drawn path in the network they are
+        // routed on are attached to the nearest drawn footpath with the OSRM walking router.
+        const WALK_NODE_OF = { p1: "LIB", p2: "FCI", p3: "FAIE", p4: "FCM", p5: "DEWAN", p6: "HB1", p7: "POOL", p8: "STADIUM", p9: "SURAU", p10: "FOM", p11: "CLC", p12: "HB2", p13: "HB3", p14: "HB4" };
+
+        function buildGraph(edgeLists) {
+            const pts = [], adj = [], byName = {};
+            const add = (ll) => { pts.push(ll); adj.push([]); return pts.length - 1; };
+            const link = (i, j) => {
+                const d = map.distance(pts[i], pts[j]);
+                adj[i].push([j, d]); adj[j].push([i, d]);
+            };
+            for (const [name, ll] of Object.entries(WALK_NODES)) byName[name] = add(ll);
+            for (const edges of edgeLists) {
+                for (const edge of edges) {
+                    let prev = byName[edge[0]];
+                    for (let k = 1; k < edge.length; k++) {
+                        const cur = typeof edge[k] === "string" ? byName[edge[k]] : add(edge[k]);
+                        link(prev, cur);
+                        prev = cur;
+                    }
+                }
+            }
+            return { pts, adj, byName };
+        }
+
+        const baseGraph = buildGraph([WALK_EDGES]);
+        const poolGraph = buildGraph([WALK_EDGES, POOL_EDGES]);
+
+        function walkShortestPath(graph, src, dst) {
+            const n = graph.pts.length;
+            const dist = new Array(n).fill(Infinity), prev = new Array(n).fill(-1), done = new Array(n).fill(false);
+            dist[src] = 0;
+            for (let iter = 0; iter < n; iter++) {
+                let u = -1;
+                for (let i = 0; i < n; i++) if (!done[i] && (u === -1 || dist[i] < dist[u])) u = i;
+                if (u === -1 || dist[u] === Infinity) break;
+                done[u] = true;
+                if (u === dst) break;
+                for (const [v, w] of graph.adj[u]) {
+                    if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+                }
+            }
+            if (dist[dst] === Infinity) return null;
+            const path = [];
+            for (let v = dst; v !== -1; v = prev[v]) path.push(v);
+            return path.reverse();
+        }
+
+        // Puts a POI onto the walking network. Drawn POIs sit directly on a node; others are
+        // joined to the nearest drawn footpath with a walking-router leg.
+        async function attachToWalkNetwork(graph, poi) {
+            const name = WALK_NODE_OF[poi.id];
+            if (name && graph.adj[graph.byName[name]].length > 0) return { v: graph.byName[name], lead: [] };
+
+            let best = -1, bestD = Infinity;
+            graph.pts.forEach((p, i) => {
+                if (graph.adj[i].length === 0) return; // skip nodes not connected in this network
+                const d = map.distance([poi.lat, poi.lng], p);
+                if (d < bestD) { bestD = d; best = i; }
+            });
+            const target = graph.pts[best];
+            let lead;
+            try {
+                const { route } = await fetchRoute(poi, { lat: target[0], lng: target[1] }, "foot");
+                lead = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+            } catch (err) {
+                lead = [[poi.lat, poi.lng]];
+            }
+            return { v: best, lead };
+        }
+
+        async function buildWalkRoute(s, e) {
+            const graph = (POOL_IDS.has(s.id) || POOL_IDS.has(e.id)) ? poolGraph : baseGraph;
+            const [a, b] = await Promise.all([attachToWalkNetwork(graph, s), attachToWalkNetwork(graph, e)]);
+            const vertices = walkShortestPath(graph, a.v, b.v);
+            if (!vertices) throw new Error("No drawn walking path between these places");
+
+            const path = [
+                ...a.lead,
+                ...vertices.map(i => graph.pts[i]),
+                ...b.lead.slice().reverse()
+            ];
+
+            let distance = 0;
+            for (let i = 1; i < path.length; i++) distance += map.distance(path[i - 1], path[i]);
+            return { latlngs: path, distance, duration: distance / 1.4 }; // ~5 km/h walking
+        }
+
         document.getElementById("route-btn").addEventListener("click", async () => {
             if (!selectedStart || !selectedEnd) {
                 alert("Please select both a starting point and a destination from the list!");
@@ -387,6 +549,29 @@
             const mode = document.getElementById("mode-select").value;
 
             try {
+                // Walk mode: follow the hand-drawn campus footpaths. Drive mode uses the normal router.
+                if (mode === "foot") {
+                    const walk = await buildWalkRoute(s, e);
+                    if (myRequest !== routeRequestId) return;
+
+                    const line = L.polyline(walk.latlngs, { color: "#2563eb", weight: 6, opacity: 0.85 });
+                    // Dotted connectors from each pin to where the drawn path starts/ends
+                    const ends = [[s, walk.latlngs[0]], [e, walk.latlngs[walk.latlngs.length - 1]]];
+                    const connectors = ends
+                        .filter(([poi, p]) => map.distance([poi.lat, poi.lng], p) > 3)
+                        .map(([poi, p]) => L.polyline([[poi.lat, poi.lng], p],
+                            { color: "#2563eb", weight: 3, opacity: 0.7, dashArray: "2, 6" }));
+
+                    routeLayer = L.featureGroup([line, ...connectors]).addTo(map);
+                    map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
+                    showInfo(
+                        `📍 From <b>${s.name}</b> to <b>${e.name}</b><br>` +
+                        `🚶 ${formatDistance(walk.distance)} &middot; about ${formatDuration(walk.duration)} walking ` +
+                        `(campus walking route)`
+                    );
+                    return;
+                }
+
                 const { route, waypoints } = await fetchRoute(s, e, mode);
                 if (myRequest !== routeRequestId) return; // user changed something meanwhile
 
