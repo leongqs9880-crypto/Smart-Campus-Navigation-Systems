@@ -411,7 +411,6 @@
             ["HB1", [2.92515, 101.64569], "HB2"],
             ["HB2", [2.92515, 101.64436], [2.92526, 101.64436], "NHB4"],
             ["NHB4", "HB3"],
-            ["NHB4", [2.92545, 101.64404], "HB4"],
             ["HB3", [2.92515, 101.64361], [2.92515, 101.64317], "J1"],
             ["J1", "JW"],
             ["J1", [2.92504, 101.64296], [2.92463, 101.6429], [2.92453, 101.64311], [2.92436, 101.64327], [2.92423, 101.64324], "SURAU"],
@@ -429,9 +428,14 @@
         // Extra drawn footpaths that are ONLY used when the trip starts or ends at the
         // Swimming Pool Complex or the Stadium (blue = via Persiaran Neuron from the hostels,
         // red = from FAIE through FCM, black = from FCI / Dewan / Library / CLC).
+        const HB4_EDGE = [
+            ["NHB4", [2.92545, 101.64404], "HB4"]
+        ];
+
         const POOL_EDGES = [
             ["J1", [2.92517, 101.6432], [2.92529, 101.6433], [2.92552, 101.64345], "HB4J", [2.92594, 101.64365], [2.92629, 101.64371], "FJ", [2.92668, 101.64369], [2.92702, 101.64362], [2.92737, 101.64356], [2.92771, 101.64349], "SJ", [2.92815, 101.64343], [2.9284, 101.64335], "POOL"],
             ["SJ", "STADIUM"],
+            ["HB4J", [2.92572, 101.64365], [2.92569, 101.64375], [2.92554, 101.64389], "NHB4"],
             ["HB4J", [2.92572, 101.64365], [2.92569, 101.64375], [2.92554, 101.64389], [2.92542, 101.64404], [2.92557, 101.64419], "HB4"],
             ["FAIE", [2.92624, 101.64188], [2.92622, 101.64222], [2.92611, 101.64242], "FCM", [2.92611, 101.64271], [2.92625, 101.64291], [2.92638, 101.64306], [2.92642, 101.64313], [2.92642, 101.6434], "FJ"],
             ["FCI", [2.92853, 101.6413], "DJ", [2.92852, 101.64188], [2.92849, 101.64215], [2.92837, 101.64237], "BJ", [2.9281, 101.64289], [2.92823, 101.64306], [2.92837, 101.6432], [2.92845, 101.64333], "POOL"],
@@ -465,8 +469,8 @@
             return { pts, adj, byName };
         }
 
-        const baseGraph = buildGraph([WALK_EDGES]);
-        const poolGraph = buildGraph([WALK_EDGES, POOL_EDGES]);
+        const baseGraph = buildGraph([WALK_EDGES, HB4_EDGE]);
+        const poolGraph = buildGraph([WALK_EDGES, POOL_EDGES]); // HB4 only via its own drawn path
 
         function walkShortestPath(graph, src, dst) {
             const n = graph.pts.length;
