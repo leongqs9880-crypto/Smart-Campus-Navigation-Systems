@@ -113,6 +113,15 @@
         }
         .swap-btn:hover { background: #f1f5f9; }
 
+        .mode-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+        }
+
         .btn-group { display: flex; gap: 8px; }
 
         .btn {
@@ -172,6 +181,14 @@
                     <input type="text" id="end-input" placeholder="Enter destination..." autocomplete="off">
                     <div id="end-results" class="autocomplete-results"></div>
                 </div>
+            </div>
+
+            <div class="input-group">
+                <label for="mode-select">🚦 Travel mode</label>
+                <select id="mode-select" class="mode-select">
+                    <option value="car" selected>Drive / shuttle (follows one-way roads)</option>
+                    <option value="foot">Walk (shortest path, ignores one-way)</option>
+                </select>
             </div>
 
             <div class="btn-group">
@@ -331,15 +348,22 @@
             return min + " min";
         }
 
-        // Real walking route along paths/roads (OSM foot profile via OSRM)
-        async function fetchWalkingRoute(a, b, signal) {
-            const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/` +
-                        `${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&steps=false`;
-            const res = await fetch(url, { signal });
+        // Real route along OSM roads via OSRM.
+        // "car" respects one-way streets (so the ring road is followed in its arrow direction);
+        // "foot" ignores one-way rules and takes the shortest walkable path.
+        const ROUTERS = {
+            car:  { base: "https://routing.openstreetmap.de/routed-car/route/v1/driving",  label: "driving" },
+            foot: { base: "https://routing.openstreetmap.de/routed-foot/route/v1/foot",    label: "walking" }
+        };
+
+        async function fetchRoute(a, b, mode) {
+            const url = `${ROUTERS[mode].base}/${a.lng},${a.lat};${b.lng},${b.lat}` +
+                        `?overview=full&geometries=geojson&steps=false`;
+            const res = await fetch(url);
             if (!res.ok) throw new Error("Routing service returned " + res.status);
             const data = await res.json();
             if (data.code !== "Ok" || !data.routes.length) throw new Error("No route found");
-            return data.routes[0];
+            return { route: data.routes[0], waypoints: data.waypoints };
         }
 
         document.getElementById("route-btn").addEventListener("click", async () => {
@@ -360,19 +384,28 @@
             map.closePopup();
 
             const s = selectedStart, e = selectedEnd;
+            const mode = document.getElementById("mode-select").value;
 
             try {
-                const route = await fetchWalkingRoute(s, e);
+                const { route, waypoints } = await fetchRoute(s, e, mode);
                 if (myRequest !== routeRequestId) return; // user changed something meanwhile
 
                 // GeoJSON is [lng, lat]; Leaflet wants [lat, lng]
                 const latlngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-                routeLayer = L.polyline(latlngs, { color: "#2563eb", weight: 6, opacity: 0.85 }).addTo(map);
+                const line = L.polyline(latlngs, { color: "#2563eb", weight: 6, opacity: 0.85 });
+
+                // Thin dotted connectors from each pin to where the route snaps onto the road
+                const connectors = [[s, waypoints[0]], [e, waypoints[1]]].map(([poi, wp]) =>
+                    L.polyline([[poi.lat, poi.lng], [wp.location[1], wp.location[0]]],
+                               { color: "#2563eb", weight: 3, opacity: 0.7, dashArray: "2, 6" })
+                );
+
+                routeLayer = L.featureGroup([line, ...connectors]).addTo(map);
                 map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
 
                 showInfo(
                     `📍 From <b>${s.name}</b> to <b>${e.name}</b><br>` +
-                    `🚶 ${formatDistance(route.distance)} &middot; about ${formatDuration(route.duration)} walking`
+                    `${mode === "car" ? "🚗" : "🚶"} ${formatDistance(route.distance)} &middot; about ${formatDuration(route.duration)} ${ROUTERS[mode].label}`
                 );
             } catch (err) {
                 if (myRequest !== routeRequestId) return;
@@ -385,7 +418,7 @@
                 map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
 
                 showInfo(
-                    `⚠️ Couldn't load a walking route (${err.message}). ` +
+                    `⚠️ Couldn't load a route (${err.message}). ` +
                     `Showing a straight line from <b>${s.name}</b> to <b>${e.name}</b> instead.`,
                     true
                 );
@@ -396,6 +429,8 @@
                 }
             }
         });
+
+        document.getElementById("mode-select").addEventListener("change", resetRoute);
 
         // 6. Swap
         document.getElementById("swap-btn").addEventListener("click", () => {
