@@ -8,9 +8,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -20,7 +18,7 @@
 
         #sidebar {
             position: relative;
-            z-index: 10;
+            z-index: 1000; /* above Leaflet panes */
             width: 360px;
             min-height: 100vh;
             background-color: #ffffff;
@@ -31,6 +29,8 @@
             flex-direction: column;
             gap: 16px;
         }
+
+        #sidebar h2 { margin: 0; }
 
         #map {
             position: fixed;
@@ -49,22 +49,9 @@
             position: relative;
         }
 
-        .input-group {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .input-group label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #64748b;
-        }
-
-        .input-wrapper {
-            position: relative;
-        }
+        .input-group { position: relative; display: flex; flex-direction: column; gap: 4px; }
+        .input-group label { font-size: 12px; font-weight: 600; color: #64748b; }
+        .input-wrapper { position: relative; }
 
         .input-wrapper input {
             width: 100%;
@@ -81,7 +68,6 @@
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
-        /* Autocomplete dropdown menu */
         .autocomplete-results {
             position: absolute;
             top: 100%;
@@ -105,12 +91,8 @@
             border-bottom: 1px solid #f1f5f9;
         }
 
-        .autocomplete-item:hover {
-            background-color: #eff6ff;
-            color: #2563eb;
-        }
+        .autocomplete-item:hover { background-color: #eff6ff; color: #2563eb; }
 
-        /* Swap locations button */
         .swap-btn {
             position: absolute;
             right: -10px;
@@ -129,15 +111,9 @@
             font-size: 12px;
             z-index: 5;
         }
+        .swap-btn:hover { background: #f1f5f9; }
 
-        .swap-btn:hover {
-            background: #f1f5f9;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 8px;
-        }
+        .btn-group { display: flex; gap: 8px; }
 
         .btn {
             flex: 1;
@@ -149,24 +125,12 @@
             cursor: pointer;
             transition: background 0.2s;
         }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
 
-        .btn-primary {
-            background-color: #2563eb;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #1d4ed8;
-        }
-
-        .btn-secondary {
-            background-color: #e2e8f0;
-            color: #475569;
-        }
-
-        .btn-secondary:hover {
-            background-color: #cbd5e1;
-        }
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: #1d4ed8; }
+        .btn-secondary { background-color: #e2e8f0; color: #475569; }
+        .btn-secondary:hover { background-color: #cbd5e1; }
 
         #route-info {
             background: #f0fdf4;
@@ -176,15 +140,12 @@
             font-size: 13px;
             color: #166534;
             display: none;
+            line-height: 1.6;
         }
+        #route-info.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
 
         @media (max-width: 600px) {
-            #sidebar {
-                width: 100%;
-                min-height: auto;
-                max-height: 40vh;
-                overflow-y: auto;
-            }
+            #sidebar { width: 100%; min-height: auto; max-height: 40vh; overflow-y: auto; }
         }
     </style>
 </head>
@@ -197,7 +158,6 @@
         <div class="search-card">
             <button class="swap-btn" id="swap-btn" title="Swap origin and destination">⇅</button>
 
-            <!-- Origin Input -->
             <div class="input-group">
                 <label for="start-input">🟢 Starting Point</label>
                 <div class="input-wrapper">
@@ -206,7 +166,6 @@
                 </div>
             </div>
 
-            <!-- Destination Input -->
             <div class="input-group">
                 <label for="end-input">🔴 Destination</label>
                 <div class="input-wrapper">
@@ -226,10 +185,9 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 1. Initialize map centered at MMU Cyberjaya
+        // 1. Map setup
         const mmuCoords = [2.9279, 101.6418];
-        const map = L.map("map", { zoomControl: false }).setView(mmuCoords, 16);
-        
+        const map = L.map("map", { zoomControl: false }).setView(mmuCoords, 17);
         L.control.zoom({ position: "topright" }).addTo(map);
 
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -237,40 +195,53 @@
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // 2. Sample MMU Cyberjaya POI Data
+        // 2. POIs - coordinates placed on the actual buildings shown on the OSM map.
+        //    Tip: click anywhere on the map and check the console to grab exact coordinates
+        //    (see the click logger at the bottom) and fine-tune these.
         const campusPOIs = [
-            { id: "p1", name: "MMU Library (Siti Hasmah Digital Library)", lat: 2.9275, lng: 101.6420 },
-            { id: "p2", name: "FCI - Faculty of Computing & Informatics", lat: 2.9288, lng: 101.6415 },
-            { id: "p3", name: "FOE - Faculty of Engineering", lat: 2.9295, lng: 101.6428 },
-            { id: "p4", name: "FCM - Faculty of Creative Multimedia", lat: 2.9265, lng: 101.6405 },
-            { id: "p5", name: "MMU Student Centre", lat: 2.9282, lng: 101.6432 },
-            { id: "p6", name: "HB1 Hostel (HB Hall)", lat: 2.9255, lng: 101.6438 },
-            { id: "p7", name: "MMU Grand Hall (Dewan Tun CTH)", lat: 2.9290, lng: 101.6402 }
+            { id: "p1", name: "MMU Library",                                   lat: 2.92757, lng: 101.64167 },
+            { id: "p2", name: "FCI - Faculty of Computing & Informatics",      lat: 2.92861, lng: 101.64104 },
+            { id: "p3", name: "FAIE - Faculty of AI & Engineering",            lat: 2.92627, lng: 101.64127 },
+            { id: "p4", name: "FCM - Faculty of Creative Multimedia",          lat: 2.92608, lng: 101.64271 },
+            { id: "p5", name: "Dewan Tun Canselor (Grand Hall)",               lat: 2.92896, lng: 101.64199 },
+            { id: "p6", name: "HB1 Hostel",                                    lat: 2.92483, lng: 101.64560 },
+            { id: "p7", name: "MMU Swimming Pool Complex",                     lat: 2.92861, lng: 101.64355 },
+            { id: "p8", name: "MMU Stadium",                                   lat: 2.92789, lng: 101.64420 },
+            { id: "p9", name: "Surau Al Hidayah",                              lat: 2.92414, lng: 101.64302 }
         ];
 
-        // State variables
+        // State
         let selectedStart = null;
         let selectedEnd = null;
         let startMarker = null;
         let endMarker = null;
-        let routePolyline = null;
+        let routeLayer = null;
+        let routeRequestId = 0; // guards against stale responses
 
-        // 3. Autocomplete search logic
-        function setupAutocomplete(inputId, resultsId, onSelect) {
+        // 3. Autocomplete
+        function setupAutocomplete(inputId, resultsId, onSelect, onClear) {
             const input = document.getElementById(inputId);
             const resultsContainer = document.getElementById(resultsId);
 
+            function pick(poi) {
+                input.value = poi.name;
+                resultsContainer.style.display = "none";
+                onSelect(poi);
+            }
+
             input.addEventListener("input", () => {
+                // Typing invalidates the previous selection
+                onClear();
+
                 const query = input.value.trim().toLowerCase();
                 resultsContainer.innerHTML = "";
-                
+
                 if (!query) {
                     resultsContainer.style.display = "none";
                     return;
                 }
 
                 const filtered = campusPOIs.filter(poi => poi.name.toLowerCase().includes(query));
-
                 if (filtered.length === 0) {
                     resultsContainer.style.display = "none";
                     return;
@@ -280,18 +251,20 @@
                     const item = document.createElement("div");
                     item.className = "autocomplete-item";
                     item.textContent = poi.name;
-                    item.addEventListener("click", () => {
-                        input.value = poi.name;
-                        resultsContainer.style.display = "none";
-                        onSelect(poi);
-                    });
+                    item.addEventListener("click", () => pick(poi));
                     resultsContainer.appendChild(item);
                 });
-
                 resultsContainer.style.display = "block";
             });
 
-            // Close dropdown when clicking outside
+            // Enter picks the first match
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    const first = resultsContainer.querySelector(".autocomplete-item");
+                    if (first) first.click();
+                }
+            });
+
             document.addEventListener("click", (e) => {
                 if (!input.contains(e.target) && !resultsContainer.contains(e.target)) {
                     resultsContainer.style.display = "none";
@@ -299,111 +272,165 @@
             });
         }
 
-        // Bind search inputs for start and end points
-        setupAutocomplete("start-input", "start-results", (poi) => {
-            selectedStart = poi;
-            updateMarker("start", poi);
-        });
+        setupAutocomplete("start-input", "start-results",
+            (poi) => { selectedStart = poi; updateMarker("start", poi); resetRoute(); },
+            () => { if (selectedStart) { selectedStart = null; removeMarker("start"); resetRoute(); } }
+        );
 
-        setupAutocomplete("end-input", "end-results", (poi) => {
-            selectedEnd = poi;
-            updateMarker("end", poi);
-        });
+        setupAutocomplete("end-input", "end-results",
+            (poi) => { selectedEnd = poi; updateMarker("end", poi); resetRoute(); },
+            () => { if (selectedEnd) { selectedEnd = null; removeMarker("end"); resetRoute(); } }
+        );
 
-        // 4. Update markers on the map
+        // 4. Markers
         function updateMarker(type, poi) {
-            if (type === "start") {
-                if (startMarker) map.removeLayer(startMarker);
-                startMarker = L.circleMarker([poi.lat, poi.lng], {
-                    color: '#16a34a',
-                    fillColor: '#22c55e',
-                    fillOpacity: 0.9,
-                    radius: 8
-                }).addTo(map).bindPopup(`<b>Start:</b> ${poi.name}`).openPopup();
-            } else {
-                if (endMarker) map.removeLayer(endMarker);
-                endMarker = L.circleMarker([poi.lat, poi.lng], {
-                    color: '#dc2626',
-                    fillColor: '#ef4444',
-                    fillOpacity: 0.9,
-                    radius: 8
-                }).addTo(map).bindPopup(`<b>Destination:</b> ${poi.name}`).openPopup();
-            }
+            removeMarker(type);
+            const isStart = type === "start";
+            const marker = L.circleMarker([poi.lat, poi.lng], {
+                color: isStart ? "#16a34a" : "#dc2626",
+                fillColor: isStart ? "#22c55e" : "#ef4444",
+                fillOpacity: 0.9,
+                radius: 9,
+                weight: 3
+            }).addTo(map).bindPopup(`<b>${isStart ? "Start" : "Destination"}:</b> ${poi.name}`);
+
+            if (isStart) startMarker = marker; else endMarker = marker;
+
+            // Only open the popup while picking; the route redraw will close it
+            map.setView([poi.lat, poi.lng], Math.max(map.getZoom(), 17));
+            marker.openPopup();
         }
 
-        // 5. Route planning and polyline drawing
-        document.getElementById("route-btn").addEventListener("click", () => {
+        function removeMarker(type) {
+            if (type === "start" && startMarker) { map.removeLayer(startMarker); startMarker = null; }
+            if (type === "end" && endMarker) { map.removeLayer(endMarker); endMarker = null; }
+        }
+
+        // 5. Route helpers
+        function resetRoute() {
+            routeRequestId++; // cancel any in-flight request
+            if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+            const info = document.getElementById("route-info");
+            info.style.display = "none";
+            info.classList.remove("warn");
+        }
+
+        function showInfo(html, warn = false) {
+            const info = document.getElementById("route-info");
+            info.innerHTML = html;
+            info.classList.toggle("warn", warn);
+            info.style.display = "block";
+        }
+
+        function formatDistance(m) {
+            return m >= 1000 ? (m / 1000).toFixed(2) + " km" : Math.round(m) + " m";
+        }
+
+        function formatDuration(sec) {
+            const min = Math.max(1, Math.round(sec / 60));
+            return min + " min";
+        }
+
+        // Real walking route along paths/roads (OSM foot profile via OSRM)
+        async function fetchWalkingRoute(a, b, signal) {
+            const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/` +
+                        `${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&steps=false`;
+            const res = await fetch(url, { signal });
+            if (!res.ok) throw new Error("Routing service returned " + res.status);
+            const data = await res.json();
+            if (data.code !== "Ok" || !data.routes.length) throw new Error("No route found");
+            return data.routes[0];
+        }
+
+        document.getElementById("route-btn").addEventListener("click", async () => {
             if (!selectedStart || !selectedEnd) {
-                alert("Please select both a starting point and a destination!");
+                alert("Please select both a starting point and a destination from the list!");
                 return;
             }
-
             if (selectedStart.id === selectedEnd.id) {
                 alert("Starting point and destination cannot be the same!");
                 return;
             }
 
-            // Remove existing route line if any
-            if (routePolyline) map.removeLayer(routePolyline);
+            resetRoute();
+            const myRequest = routeRequestId;
+            const btn = document.getElementById("route-btn");
+            btn.disabled = true;
+            btn.textContent = "Routing...";
+            map.closePopup();
 
-            const pathCoordinates = [
-                [selectedStart.lat, selectedStart.lng],
-                [selectedEnd.lat, selectedEnd.lng]
-            ];
+            const s = selectedStart, e = selectedEnd;
 
-            // Draw route line
-            routePolyline = L.polyline(pathCoordinates, {
-                color: '#2563eb',
-                weight: 5,
-                opacity: 0.8,
-                dashArray: '8, 8'
-            }).addTo(map);
+            try {
+                const route = await fetchWalkingRoute(s, e);
+                if (myRequest !== routeRequestId) return; // user changed something meanwhile
 
-            // Fit map view to bounds of the route
-            map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+                // GeoJSON is [lng, lat]; Leaflet wants [lat, lng]
+                const latlngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+                routeLayer = L.polyline(latlngs, { color: "#2563eb", weight: 6, opacity: 0.85 }).addTo(map);
+                map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
 
-            // Display route summary
-            const routeInfo = document.getElementById("route-info");
-            routeInfo.style.display = "block";
-            routeInfo.innerHTML = `📍 From <b>${selectedStart.name}</b> to <b>${selectedEnd.name}</b><br>🚶‍♂️ Ready for navigation...`;
+                showInfo(
+                    `📍 From <b>${s.name}</b> to <b>${e.name}</b><br>` +
+                    `🚶 ${formatDistance(route.distance)} &middot; about ${formatDuration(route.duration)} walking`
+                );
+            } catch (err) {
+                if (myRequest !== routeRequestId) return;
+                console.error(err);
+
+                // Fallback: straight dashed line so the user still sees something
+                routeLayer = L.polyline([[s.lat, s.lng], [e.lat, e.lng]], {
+                    color: "#f59e0b", weight: 5, opacity: 0.85, dashArray: "8, 8"
+                }).addTo(map);
+                map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
+
+                showInfo(
+                    `⚠️ Couldn't load a walking route (${err.message}). ` +
+                    `Showing a straight line from <b>${s.name}</b> to <b>${e.name}</b> instead.`,
+                    true
+                );
+            } finally {
+                if (myRequest === routeRequestId) {
+                    btn.disabled = false;
+                    btn.textContent = "Get Route";
+                }
+            }
         });
 
-        // 6. Swap origin and destination
+        // 6. Swap
         document.getElementById("swap-btn").addEventListener("click", () => {
             const startInput = document.getElementById("start-input");
             const endInput = document.getElementById("end-input");
 
-            // Swap values
-            const tempPoi = selectedStart;
-            selectedStart = selectedEnd;
-            selectedEnd = tempPoi;
+            [selectedStart, selectedEnd] = [selectedEnd, selectedStart];
+            [startInput.value, endInput.value] = [endInput.value, startInput.value];
 
-            // Swap input text
-            const tempVal = startInput.value;
-            startInput.value = endInput.value;
-            endInput.value = tempVal;
-
-            // Update markers
+            removeMarker("start");
+            removeMarker("end");
+            resetRoute();
             if (selectedStart) updateMarker("start", selectedStart);
-            else if (startMarker) map.removeLayer(startMarker);
-
             if (selectedEnd) updateMarker("end", selectedEnd);
-            else if (endMarker) map.removeLayer(endMarker);
         });
 
-        // 7. Clear search and map state
+        // 7. Clear
         document.getElementById("clear-btn").addEventListener("click", () => {
             selectedStart = null;
             selectedEnd = null;
             document.getElementById("start-input").value = "";
             document.getElementById("end-input").value = "";
-            document.getElementById("route-info").style.display = "none";
+            removeMarker("start");
+            removeMarker("end");
+            resetRoute();
+            const btn = document.getElementById("route-btn");
+            btn.disabled = false;
+            btn.textContent = "Get Route";
+            map.closePopup();
+            map.setView(mmuCoords, 17);
+        });
 
-            if (startMarker) map.removeLayer(startMarker);
-            if (endMarker) map.removeLayer(endMarker);
-            if (routePolyline) map.removeLayer(routePolyline);
-
-            map.setView(mmuCoords, 16);
+        // Dev helper: click the map to see coordinates (use these to fine-tune POIs)
+        map.on("click", (ev) => {
+            console.log(`{ lat: ${ev.latlng.lat.toFixed(5)}, lng: ${ev.latlng.lng.toFixed(5)} }`);
         });
     </script>
 </body>
