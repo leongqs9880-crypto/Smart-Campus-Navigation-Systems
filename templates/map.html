@@ -274,8 +274,12 @@
                 <button class="restaurant-route-btn" type="button" data-restaurant="haji-tapah">Navigate</button>
             </div>
             <div class="restaurant-item">
-                <span>CFC</span>
+                <span>Central Food Court(CFC)/STARBEES</span>
                 <button class="restaurant-route-btn" type="button" data-restaurant="cfc">Navigate</button>
+            </div>
+            <div class="restaurant-item">
+                <span>Dapo Sahang</span>
+                <button class="restaurant-route-btn" type="button" data-restaurant="dapo-sahang">Navigate</button>
             </div>
         </div>
     </div>
@@ -312,10 +316,11 @@
             { id: "p14", name: "HB4 - Hostel Building 4", lat: 2.92574, lng: 101.64436 }
         ];
 
-        // Restaurant building centers from OpenStreetMap (Haji Tapah: way 133480495).
+        // Haji Tapah and CFC use mapped building centers; Dapo Sahang uses the HB2 Food Court location.
         const restaurantPOIs = [
             { id: "haji-tapah", name: "Haji Tapah Caterer", lat: 2.9270828, lng: 101.6417969 },
-            { id: "cfc", name: "CFC", lat: 2.92782, lng: 101.64307 }
+            { id: "cfc", name: "Central Food Court(CFC)/STARBEES", lat: 2.92782, lng: 101.64307 },
+            { id: "dapo-sahang", name: "Dapo Sahang", lat: 2.92557, lng: 101.64461 }
         ];
 
         // State
@@ -327,6 +332,10 @@
         let routeRequestId = 0; // guards against stale responses
 
         // 3. Autocomplete
+        function normalizeSearchText(value) {
+            return value.normalize("NFKC").toLocaleLowerCase("en").trim();
+        }
+
         function setupAutocomplete(inputId, resultsId, onSelect, onClear) {
             const input = document.getElementById(inputId);
             const resultsContainer = document.getElementById(resultsId);
@@ -341,7 +350,7 @@
                 // Typing invalidates the previous selection
                 onClear();
 
-                const query = input.value.trim().toLowerCase();
+                const query = normalizeSearchText(input.value);
                 resultsContainer.innerHTML = "";
 
                 if (!query) {
@@ -349,7 +358,7 @@
                     return;
                 }
 
-                const filtered = [...campusPOIs, ...restaurantPOIs].filter(poi => poi.name.toLowerCase().includes(query));
+                const filtered = [...campusPOIs, ...restaurantPOIs].filter(poi => normalizeSearchText(poi.name).includes(query));
                 if (filtered.length === 0) {
                     resultsContainer.style.display = "none";
                     return;
