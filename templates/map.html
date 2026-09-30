@@ -32,6 +32,66 @@
 
         #sidebar h2 { margin: 0; }
 
+        .navigation-section summary {
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .navigation-section summary:hover { background: #eff6ff; }
+        .navigation-section summary:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+        .navigation-section .search-card { margin-top: 12px; }
+
+        #restaurants-control {
+            position: fixed;
+            top: 20px;
+            left: 376px;
+            z-index: 1001;
+            width: 240px;
+        }
+
+        #restaurants-btn {
+            padding: 11px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #restaurants-btn:hover { background: #eff6ff; }
+        #restaurants-btn:focus-visible, .restaurant-route-btn:focus-visible {
+            outline: 3px solid #93c5fd;
+            outline-offset: 2px;
+        }
+
+        #restaurants-panel {
+            margin-top: 8px;
+            padding: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+        }
+
+        #restaurants-panel[hidden] { display: none; }
+        #restaurants-panel h3 { margin: 0 0 10px; font-size: 15px; }
+        .restaurant-item + .restaurant-item { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 10px; }
+        .restaurant-item span { display: block; font-size: 14px; margin-bottom: 7px; }
+        .restaurant-route-btn {
+            border: 0;
+            border-radius: 7px;
+            padding: 7px 10px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+
         #map {
             position: fixed;
             inset: 0;
@@ -152,9 +212,11 @@
             line-height: 1.6;
         }
         #route-info.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+        .navigation-section #route-info { margin-top: 12px; }
 
         @media (max-width: 600px) {
             #sidebar { width: 100%; min-height: auto; max-height: 40vh; overflow-y: auto; }
+            #restaurants-control { position: relative; left: auto; top: auto; margin: 12px; }
         }
     </style>
 </head>
@@ -164,41 +226,59 @@
     <aside id="sidebar">
         <h2>MMU Campus Navigation</h2>
 
-        <div class="search-card">
-            <button class="swap-btn" id="swap-btn" title="Swap origin and destination">⇅</button>
+        <details class="navigation-section">
+            <summary>Navigation</summary>
+            <div class="search-card">
+                <button class="swap-btn" id="swap-btn" title="Swap origin and destination">⇅</button>
 
-            <div class="input-group">
-                <label for="start-input">🟢 Starting Point</label>
-                <div class="input-wrapper">
-                    <input type="text" id="start-input" placeholder="Enter starting point..." autocomplete="off">
-                    <div id="start-results" class="autocomplete-results"></div>
+                <div class="input-group">
+                    <label for="start-input">🟢 Starting Point</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="start-input" placeholder="Enter starting point..." autocomplete="off">
+                        <div id="start-results" class="autocomplete-results"></div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="end-input">🔴 Destination</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="end-input" placeholder="Enter destination..." autocomplete="off">
+                        <div id="end-results" class="autocomplete-results"></div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="mode-select">🚦 Travel mode</label>
+                    <select id="mode-select" class="mode-select">
+                        <option value="car" selected>🚗 Drive / shuttle (follows one-way roads)</option>
+                        <option value="foot">🚶🏻 Walk (pedestrian paths)</option>
+                    </select>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="route-btn">Get Route</button>
+                    <button class="btn btn-secondary" id="clear-btn">Clear</button>
                 </div>
             </div>
 
-            <div class="input-group">
-                <label for="end-input">🔴 Destination</label>
-                <div class="input-wrapper">
-                    <input type="text" id="end-input" placeholder="Enter destination..." autocomplete="off">
-                    <div id="end-results" class="autocomplete-results"></div>
-                </div>
-            </div>
+            <div id="route-info"></div>
+        </details>
+    </aside>
 
-            <div class="input-group">
-                <label for="mode-select">🚦 Travel mode</label>
-                <select id="mode-select" class="mode-select">
-                    <option value="car" selected>Drive / shuttle (follows one-way roads)</option>
-                    <option value="foot">Walk (shortest path, ignores one-way)</option>
-                </select>
+    <div id="restaurants-control">
+        <button id="restaurants-btn" type="button" aria-expanded="false" aria-controls="restaurants-panel">🍽️ Nearby restaurants</button>
+        <div id="restaurants-panel" hidden>
+            <h3>Nearby restaurants</h3>
+            <div class="restaurant-item">
+                <span>Haji Tapah Caterer</span>
+                <button class="restaurant-route-btn" type="button" data-restaurant="haji-tapah">Navigate</button>
             </div>
-
-            <div class="btn-group">
-                <button class="btn btn-primary" id="route-btn">Get Route</button>
-                <button class="btn btn-secondary" id="clear-btn">Clear</button>
+            <div class="restaurant-item">
+                <span>CFC</span>
+                <button class="restaurant-route-btn" type="button" data-restaurant="cfc">Navigate</button>
             </div>
         </div>
-
-        <div id="route-info"></div>
-    </aside>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -232,6 +312,12 @@
             { id: "p14", name: "HB4 - Hostel Building 4", lat: 2.92574, lng: 101.64436 }
         ];
 
+        // Restaurant building centers from OpenStreetMap (Haji Tapah: way 133480495).
+        const restaurantPOIs = [
+            { id: "haji-tapah", name: "Haji Tapah Caterer", lat: 2.9270828, lng: 101.6417969 },
+            { id: "cfc", name: "CFC", lat: 2.92782, lng: 101.64307 }
+        ];
+
         // State
         let selectedStart = null;
         let selectedEnd = null;
@@ -263,7 +349,7 @@
                     return;
                 }
 
-                const filtered = campusPOIs.filter(poi => poi.name.toLowerCase().includes(query));
+                const filtered = [...campusPOIs, ...restaurantPOIs].filter(poi => poi.name.toLowerCase().includes(query));
                 if (filtered.length === 0) {
                     resultsContainer.style.display = "none";
                     return;
@@ -303,6 +389,46 @@
             (poi) => { selectedEnd = poi; updateMarker("end", poi); resetRoute(); },
             () => { if (selectedEnd) { selectedEnd = null; removeMarker("end"); resetRoute(); } }
         );
+
+        const restaurantsButton = document.getElementById("restaurants-btn");
+        const restaurantsPanel = document.getElementById("restaurants-panel");
+        const restaurantMarkers = L.layerGroup();
+
+        restaurantsButton.addEventListener("click", () => {
+            const show = restaurantsPanel.hidden;
+            restaurantsPanel.hidden = !show;
+            restaurantsButton.setAttribute("aria-expanded", String(show));
+            if (show) {
+                restaurantPOIs.forEach(poi => {
+                    L.marker([poi.lat, poi.lng]).bindPopup(poi.name).addTo(restaurantMarkers);
+                });
+                restaurantMarkers.addTo(map);
+            } else {
+                restaurantMarkers.clearLayers();
+                map.removeLayer(restaurantMarkers);
+            }
+        });
+
+        document.querySelectorAll(".restaurant-route-btn").forEach(button => {
+            button.addEventListener("click", () => {
+                const poi = restaurantPOIs.find(item => item.id === button.dataset.restaurant);
+                selectedEnd = poi;
+                document.getElementById("end-input").value = poi.name;
+                document.getElementById("end-results").style.display = "none";
+                restaurantsPanel.hidden = true;
+                restaurantsButton.setAttribute("aria-expanded", "false");
+                restaurantMarkers.clearLayers();
+                map.removeLayer(restaurantMarkers);
+                document.querySelector(".navigation-section").open = true;
+                resetRoute();
+                updateMarker("end", poi);
+                if (selectedStart && selectedStart.id !== poi.id) {
+                    document.getElementById("route-btn").click();
+                } else {
+                    document.getElementById("start-input").focus();
+                }
+            });
+        });
 
         // 4. Markers
         function updateMarker(type, poi) {
@@ -358,7 +484,7 @@
 
         // Real route along OSM roads via OSRM.
         // "car" respects one-way streets (so the ring road is followed in its arrow direction);
-        // "foot" ignores one-way rules and takes the shortest walkable path.
+        // "foot" uses the pedestrian routing profile.
         const ROUTERS = {
             car:  { base: "https://routing.openstreetmap.de/routed-car/route/v1/driving",  label: "driving" },
             foot: { base: "https://routing.openstreetmap.de/routed-foot/route/v1/foot",    label: "walking" }
@@ -375,7 +501,7 @@
         }
 
         // ---- Campus walking network (traced from the hand-drawn routes) ----------------
-        // Walk mode follows ONLY these drawn footpaths. Drive mode is untouched (OSRM car).
+        // The original hand-drawn walking network is retained for optional use.
         // Each edge starts and ends at a named node; the [lat, lng] pairs in between are the
         // bends of the drawn line. Add a new edge to extend the walking network.
         const WALK_NODES = {
@@ -532,6 +658,8 @@
             return { latlngs: path, distance, duration: distance / 1.4 }; // ~5 km/h walking
         }
 
+        const USE_DRAWN_WALK_ROUTES = false;
+
         document.getElementById("route-btn").addEventListener("click", async () => {
             if (!selectedStart || !selectedEnd) {
                 alert("Please select both a starting point and a destination from the list!");
@@ -553,8 +681,8 @@
             const mode = document.getElementById("mode-select").value;
 
             try {
-                // Walk mode: follow the hand-drawn campus footpaths. Drive mode uses the normal router.
-                if (mode === "foot") {
+                // Turn this branch back on to restore the hand-drawn campus walking routes.
+                if (mode === "foot" && USE_DRAWN_WALK_ROUTES) {
                     const walk = await buildWalkRoute(s, e);
                     if (myRequest !== routeRequestId) return;
 
