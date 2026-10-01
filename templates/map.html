@@ -678,7 +678,27 @@
             return { latlngs: path, distance, duration: distance / 1.4 }; // ~5 km/h walking
         }
 
-        const USE_DRAWN_WALK_ROUTES = false;
+        // Which walking trips use the hand-drawn routes 
+        // A trip uses the drawn route when its two places match one of the rules below (in either direction).
+        // Every other walking trip uses the normal walking router.
+        // Drive mode is never affected. Edit the ID lists, or add / remove rules, to change which trips are drawn.
+        const GROUP_HB12      = ["p6", "p12"];                      // HB1, HB2
+        const GROUP_HB34      = ["p13", "p14"];                     // HB3, HB4
+        const GROUP_POOL      = ["p7", "p8"];                       // Swimming Pool Complex, Stadium
+        const GROUP_SURAU     = ["p9"];                             // Surau Al Hidayah
+        const GROUP_IN_SCHOOL = ["p1", "p2", "p3", "p4", "p5", "p10", "p11"]; // Library, FCI, FAIE, FCM, Dewan, FOM, CLC
+
+        const DRAWN_WALK_RULES = [
+            [GROUP_HB12, GROUP_POOL],
+            [GROUP_HB12, GROUP_HB34],
+            [GROUP_HB12, GROUP_SURAU],
+            [GROUP_HB12, GROUP_IN_SCHOOL]
+        ];
+
+        function useDrawnWalkRoute(s, e) {
+            return DRAWN_WALK_RULES.some(([x, y]) =>
+                (x.includes(s.id) && y.includes(e.id)) || (y.includes(s.id) && x.includes(e.id)));
+        }
 
         document.getElementById("route-btn").addEventListener("click", async () => {
             if (!selectedStart || !selectedEnd) {
@@ -701,27 +721,35 @@
             const mode = document.getElementById("mode-select").value;
 
             try {
-                // Turn this branch back on to restore the hand-drawn campus walking routes.
-                if (mode === "foot" && USE_DRAWN_WALK_ROUTES) {
-                    const walk = await buildWalkRoute(s, e);
+                // Walk mode: trips listed in DRAWN_WALK_RULES follow the hand-drawn campus footpaths.
+                // All other trips (and any listed trip with no connected drawn path) use the router.
+                if (mode === "foot" && useDrawnWalkRoute(s, e)) {
+                    let walk = null;
+                    try {
+                        walk = await buildWalkRoute(s, e);
+                    } catch (err) {
+                        console.warn("Drawn walking route unavailable, using the normal router:", err);
+                    }
                     if (myRequest !== routeRequestId) return;
 
-                    const line = L.polyline(walk.latlngs, { color: "#2563eb", weight: 6, opacity: 0.85 });
-                    // Dotted connectors from each pin to where the drawn path starts/ends
-                    const ends = [[s, walk.latlngs[0]], [e, walk.latlngs[walk.latlngs.length - 1]]];
-                    const connectors = ends
-                        .filter(([poi, p]) => map.distance([poi.lat, poi.lng], p) > 3)
-                        .map(([poi, p]) => L.polyline([[poi.lat, poi.lng], p],
-                            { color: "#2563eb", weight: 3, opacity: 0.7, dashArray: "2, 6" }));
+                    if (walk) {
+                        const line = L.polyline(walk.latlngs, { color: "#2563eb", weight: 6, opacity: 0.85 });
+                        // Dotted connectors from each pin to where the drawn path starts/ends
+                        const ends = [[s, walk.latlngs[0]], [e, walk.latlngs[walk.latlngs.length - 1]]];
+                        const connectors = ends
+                            .filter(([poi, p]) => map.distance([poi.lat, poi.lng], p) > 3)
+                            .map(([poi, p]) => L.polyline([[poi.lat, poi.lng], p],
+                                { color: "#2563eb", weight: 3, opacity: 0.7, dashArray: "2, 6" }));
 
-                    routeLayer = L.featureGroup([line, ...connectors]).addTo(map);
-                    map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
-                    showInfo(
-                        `📍 From <b>${s.name}</b> to <b>${e.name}</b><br>` +
-                        `🚶 ${formatDistance(walk.distance)} &middot; about ${formatDuration(walk.duration)} walking ` +
-                        `(campus walking route)`
-                    );
-                    return;
+                        routeLayer = L.featureGroup([line, ...connectors]).addTo(map);
+                        map.fitBounds(routeLayer.getBounds(), { padding: [60, 60] });
+                        showInfo(
+                            `📍 From <b>${s.name}</b> to <b>${e.name}</b><br>` +
+                            `🚶 ${formatDistance(walk.distance)} &middot; about ${formatDuration(walk.duration)} walking ` +
+                            `(campus walking route)`
+                        );
+                        return;
+                    }
                 }
 
                 const { route, waypoints } = await fetchRoute(s, e, mode);
